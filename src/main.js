@@ -5,26 +5,36 @@ import Stats from 'three/addons/libs/stats.module.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 import {FisheyeCamera} from './fisheye.js';
 
-let camera, scene, outerScene, renderer, stats;
-let cube, sphere, torus, sphereMaterial;
-
-let cubeCamera, cubeRenderTarget;
-
+let canvas, camera, scene, renderer, stats;
+let cube, torus;
 let controls;
 
 // https://discourse.threejs.org/t/fisheye-camera-tested-with-bruno-simons-level1-code/56787
 init();
 
+function setResolution(resolution) {
+    canvas.width = resolution;
+    canvas.height = resolution;
+
+    renderer.setSize(resolution, resolution);
+
+    camera = new FisheyeCamera(resolution);
+}
+
 function init() {
-
-    const canvas = document.getElementById("threeCanvas");
-    const width = canvas.width;
-    const height = canvas.height;
-
+    canvas = document.getElementById("threeCanvas");
     scene = new THREE.Scene();
     //scene.rotation.y = 0.5; // avoid flying objects occluding the sun
 
-    camera = new FisheyeCamera(width, height);
+    if (window.showDirectoryPicker === undefined) {
+        document.getElementById('unsupportedModal').open = true;
+    }
+
+    const resolutionInput = document.getElementById("resolution");
+    resolutionInput.onchange = () => {
+        setResolution(resolutionInput.valueAsNumber);
+    }
+    const resolution = resolutionInput.valueAsNumber;
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -32,10 +42,10 @@ function init() {
         alpha: true
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(width, height);
     renderer.setAnimationLoop(animate);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    document.body.appendChild(renderer.domElement);
+
+    setResolution(resolution);
 
     stats = new Stats();
     document.body.appendChild(stats.dom);
@@ -62,11 +72,19 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.autoRotate = true;
 
-    window.saveImages = () => saveImages(renderer);
+    window.saveImages = () => saveImages(
+        renderer,
+        document.getElementById("duration").valueAsNumber,
+        document.getElementById("framerate").valueAsNumber,
+    );
 }
 
 async function saveImages(renderer, duration = 0.5, fps = 60) {
     renderer.setAnimationLoop(null); // Stop auto animation
+    if (window.showDirectoryPicker === undefined) {
+        document.getElementById('unsupportedModal').open = true;
+        return;
+    }
     const dirHandle = await window.showDirectoryPicker();
     const dt = duration / fps
     const iMax = duration * fps;

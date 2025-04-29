@@ -23,15 +23,43 @@
 
 		<main class="container">
 			<section>
+				<h1>Domare - Save Three.js scenes to Fulldome format</h1>
+				<fieldset class="grid">
+					<label>
+						Resolution (pixels)
+						<input type="number" id="resolution" value="800" aria-label="Side resolution">
+					</label>
+					<label>
+						Duration (seconds)
+						<input type="number" id="duration" value="5" aria-label="Video duration in seconds">
+					</label>
+					<label>
+						Framerate (fps)
+						<input type="number" id="framerate" value="60" aria-label="Video framerate in frames per second">
+					</label>
+				</fieldset>
+				<button onclick="saveImages()">Save images</button>
+			</section>
+			<section>
 				<div>
 					<canvas id="threeCanvas" width="800" height="800"></canvas>
 				</div>
 			</section>
-			<section>
-				<h1>Domare - Save Three.js scenes to Fulldome format</h1>
-				<button onclick="saveImages()">Save images</button>
-			</section>
 		</main>
+
+		<dialog id="unsupportedModal">
+			<article>
+				<header>
+					<button aria-label="Close" rel="prev" onclick="document.getElementById('unsupportedModal').open = false"></button>
+					<p><strong>Sorry!</strong></p>
+				</header>
+				<p>
+					Sorry, but your browser does not yet support the required File System API calls.
+					You might have more luck with a Chromium-based browser.
+				</p>
+				<a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker#browser_compatibility">Show compatible browsers</a>
+			</article>
+		</dialog>
 
 		<script type="module" src="src/main.js"></script>
 

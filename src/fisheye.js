@@ -6,23 +6,23 @@ const s = new THREE.Vector3();
 const e = new THREE.Euler(0, Math.PI, 0);
 
 class FisheyeCamera extends THREE.PerspectiveCamera {
-    constructor(width, height, zoom = 1, detail = 32) {
+    constructor(resolution, detail = 32) {
         super();
         this.position.set(0, 0, 1);
 
-        const radius = height/2;
+        const radius = resolution/2;
         this.outerCamera = new THREE.OrthographicCamera(
-            width / -2, width / 2,
-            height / 2, height / -2,
+            resolution / -2, resolution / 2,
+            resolution / 2, resolution / -2,
             1, radius * 2
         );
         this.outerCamera.position.set(0, 0, radius * 2);
-        this.outerCamera.zoom = zoom;
+        this.outerCamera.zoom = 1;
         this.outerCamera.updateProjectionMatrix();
 
         this.outerScene = new THREE.Scene();
 
-        const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(width);
+        const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(resolution);
         cubeRenderTarget.texture.flipY = true;
         cubeRenderTarget.texture.type = THREE.HalfFloatType;
         //cubeRenderTarget.texture.isRenderTargetTexture = false;

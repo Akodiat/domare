@@ -6,8 +6,9 @@ const s = new THREE.Vector3();
 const e = new THREE.Euler(0, Math.PI, 0);
 
 class FisheyeCamera extends THREE.PerspectiveCamera {
-    constructor(resolution, detail = 32) {
+    constructor(resolution, detail = 32, eyeSep = 0.064) {
         super();
+        this.eyeSep = eyeSep;
         this.position.set(0, 0, 1);
 
         const radius = resolution/2;

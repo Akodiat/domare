@@ -19,8 +19,6 @@ function setResolution(resolution) {
 
     renderer.setSize(resolution, resolution);
 
-    //camera = new FisheyeCamera(resolution);
-
     if (controls) {
         camera.setResolution(resolution);
         controls.object = camera;
@@ -30,7 +28,6 @@ function setResolution(resolution) {
 function init() {
     canvas = document.getElementById("threeCanvas");
     scene = new THREE.Scene();
-    //scene.rotation.y = 0.5; // avoid flying objects occluding the sun
 
     if (window.showDirectoryPicker === undefined) {
         document.getElementById('unsupportedModal').open = true;
@@ -118,10 +115,19 @@ function init() {
         renderer,
         document.getElementById("duration").valueAsNumber,
         document.getElementById("framerate").valueAsNumber,
+        document.getElementById("eyeSep").valueAsNumber,
     );
+
+    window.camera = camera;
 }
 
-async function saveImages(renderer, duration = 0.5, fps = 60) {
+function canvasToBlob(canvas) {
+    return new Promise(resolve => {
+        canvas.toBlob(resolve);
+    });
+};
+
+async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.5) {
     renderer.setAnimationLoop(null); // Stop auto animation
     if (window.showDirectoryPicker === undefined) {
         document.getElementById('unsupportedModal').open = true;
@@ -131,38 +137,54 @@ async function saveImages(renderer, duration = 0.5, fps = 60) {
     const dt = duration / fps
     const iMax = duration * fps;
     const maxDig = iMax.toString().length;
-    let i = 0;
-    const step = () => {
-        animate(i * dt * 1000);
-        renderer.domElement.toBlob(blob => {
-            // create a new handle
-            dirHandle.getFileHandle(
-                `Bildsekvens.${i.toString().padStart(maxDig, "0")}.png`,
-                {create: true}
-            ).then(fileHandle=>fileHandle.createWritable().then(writableStream=>{
-                writableStream.write(blob);
-                writableStream.close();
 
-                i++;
-                if (i<iMax) {
-                    requestAnimationFrame(step);
-                } else {
-                    // Continue auto animation
-                    renderer.setAnimationLoop(animate);
-                }
-            }));
-        }, "image/png", 1.0);
+    const eyes = new Map([
+        ["left", new THREE.Vector3(-eyeSep/2, 0, 0)],
+        ["right", new THREE.Vector3(eyeSep/2, 0, 0)]
+    ]);
+    let i = 0;
+    const step = async () => {
+        animate(undefined, dt);
+        for (const [eye, deltaPos] of eyes) {
+            const dP = camera.localToWorld(deltaPos.clone());
+            camera.position.add(dP);
+            camera.update(renderer, scene);
+            renderer.render(camera.outerScene, camera.outerCamera);
+            const blob = await canvasToBlob(renderer.domElement);
+            camera.position.sub(dP);
+
+            // create a new handle
+            const fileHandle = await dirHandle.getFileHandle(
+                `Bildsekvens.${i.toString().padStart(maxDig, "0")}.${eye}.png`,
+                {create: true}
+            )
+            const writableStream = await fileHandle.createWritable();
+            writableStream.write(blob);
+            writableStream.close();
+
+        }
+        i++;
+        if (i<iMax) {
+            requestAnimationFrame(step);
+        } else {
+            // Continue auto animation
+            renderer.setAnimationLoop(animate);
+        }
     }
     requestAnimationFrame(step);
 }
 
-function animate(msTime) {
-    controls.update();
+function animate(_, delta) {
+    if (delta) {
+        controls.update(delta);
+    } else {
+        controls.update(clock.getDelta());
+    }
+    controls.update(delta);
     camera.update(renderer, scene);
     renderer.render(camera.outerScene, camera.outerCamera);
 
     if (mixer) {
-        const delta = clock.getDelta();
         mixer.update(delta);
     }
 

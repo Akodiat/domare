@@ -25,7 +25,7 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
         const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(resolution);
         cubeRenderTarget.texture.flipY = true;
         cubeRenderTarget.texture.type = THREE.HalfFloatType;
-        //cubeRenderTarget.texture.isRenderTargetTexture = false;
+        cubeRenderTarget.texture.isRenderTargetTexture = false;
 
         this.cubeCamera = new THREE.CubeCamera(0.01, 1000, cubeRenderTarget);
 

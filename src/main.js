@@ -20,6 +20,9 @@ function setResolution(resolution) {
     renderer.setSize(resolution, resolution);
 
     camera = new FisheyeCamera(resolution);
+    if (controls) {
+        controls.object = camera;
+    }
 }
 
 function init() {

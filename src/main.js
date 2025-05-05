@@ -53,8 +53,15 @@ function init() {
 
     window.uploads = {};
 
+    const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.5, 0.5),
+        new THREE.MeshStandardMaterial({color: 0x575757})
+    );
+    scene.add(cube);
+
     const modelInput = document.getElementById("modelInput");
     modelInput.onchange = () => {
+        scene.remove(cube); // Remove default cube
         const loader = new GLTFLoader();
         for (const uploadedFile of modelInput.files) {
             const url = URL.createObjectURL(uploadedFile);

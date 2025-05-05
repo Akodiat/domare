@@ -75,11 +75,25 @@ function init() {
         }
     }
 
-    new RGBELoader().load('textures/equirectangular/quarry_01_1k.hdr', texture => {
+    new RGBELoader().load("textures/equirectangular/quarry_01_1k.hdr", texture => {
         texture.mapping = THREE.EquirectangularReflectionMapping;
         scene.background = texture;
         scene.environment = texture;
     });
+
+    const backgroundInput = document.getElementById("backgroundInput");
+    backgroundInput.onchange = () => {
+        const url = URL.createObjectURL(backgroundInput.files[0]);
+        new RGBELoader().load(url, texture => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.background = texture;
+            scene.environment = texture;
+
+            URL.revokeObjectURL(url);
+        }, undefined, ()=>{
+            URL.revokeObjectURL(url)
+        });
+    }
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.autoRotate = true;

@@ -19,8 +19,10 @@ function setResolution(resolution) {
 
     renderer.setSize(resolution, resolution);
 
-    camera = new FisheyeCamera(resolution);
+    //camera = new FisheyeCamera(resolution);
+
     if (controls) {
+        camera.setResolution(resolution);
         controls.object = camera;
     }
 }
@@ -35,10 +37,12 @@ function init() {
     }
 
     const resolutionInput = document.getElementById("resolution");
-    resolutionInput.onchange = () => {
+    resolutionInput.oninput = () => {
         setResolution(resolutionInput.valueAsNumber);
     }
     const resolution = resolutionInput.valueAsNumber;
+
+    camera = new FisheyeCamera(resolution);
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,

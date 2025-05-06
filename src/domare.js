@@ -12,9 +12,10 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
      * Construct a Fisheye lens canera
      * @param {number} resolution Resolution in pixels (expexts a single number,
      * since the canvas will be square)
+     * @param {THREE.Euler} tilt Tilt of the dome in Euler angles (radians)
      * @param {number} detail Smoothness of the icosphere used for the Fisheye effect
      */
-    constructor(resolution, detail = 32) {
+    constructor(resolution, tilt = new THREE.Euler(0, 0, 0), detail = 32) {
         super();
         this.position.set(0, 0, 1);
 
@@ -34,6 +35,7 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
         this.outerScene.add(this.sphere);
 
         this.offset = new THREE.Vector3();
+        this.tilt = tilt;
 
         this.setResolution(resolution);
     }
@@ -72,7 +74,8 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
         // Apply camera position and rotation, flip the Y axis
         this.matrixWorld.decompose(t, r, s);
         this.cubeCamera.position.copy(t);
-        this.cubeCamera.quaternion.setFromEuler(e).premultiply(r);
+        const e2 = new THREE.Euler(e.x+this.tilt.x, e.y+this.tilt.y, e.z+this.tilt.z)
+        this.cubeCamera.quaternion.setFromEuler(e2).premultiply(r);
 
         // Offset camera (for e.g. eye separation)
         this.cubeCamera.position.add(this.localToWorld(this.offset.clone()));
@@ -116,10 +119,17 @@ async function saveImageSequence(
     const dt = duration / nFrames;
     const maxDig = nFrames.toString().length;
 
-    const eyes = new Map([
-        ["left", new THREE.Vector3(-eyeSep/2, 0, 0)],
-        ["right", new THREE.Vector3(eyeSep/2, 0, 0)]
-    ]);
+    const eyes = [{
+            name: "LEFT",
+            deltaPos: new THREE.Vector3(-eyeSep/2, 0, 0)
+        }, {
+            name: "RIGHT",
+            deltaPos: new THREE.Vector3(eyeSep/2, 0, 0)
+    }];
+    for (const eye of eyes) {
+        eye.subDir = await dirHandle.getDirectoryHandle(eye.name, {create: true});
+    }
+
     let i = 0;
     const step = async () => {
         // Log progress
@@ -131,15 +141,15 @@ async function saveImageSequence(
         }
 
         // Offset and save camera for each eye
-        for (const [eye, deltaPos] of eyes) {
-            camera.offset.copy(deltaPos);
+        for (const eye of eyes) {
+            camera.offset.copy(eye.deltaPos);
             camera.update(renderer, scene);
             renderer.render(camera.outerScene, camera.outerCamera);
             const blob = await canvasToBlob(renderer.domElement);
 
             // Create handles for file and writable stream
-            const fileHandle = await dirHandle.getFileHandle(
-                `Bildsekvens.${i.toString().padStart(maxDig, "0")}.${eye}.png`,
+            const fileHandle = await eye.subDir.getFileHandle(
+                `Bildsekvens_${eye.name}_${i.toString().padStart(maxDig, "0")}.png`,
                 {create: true}
             )
             const writableStream = await fileHandle.createWritable();

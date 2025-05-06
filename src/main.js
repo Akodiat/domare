@@ -29,7 +29,13 @@ function init() {
     }
     const resolution = resolutionInput.valueAsNumber;
 
+    const tiltInput = document.getElementById("tilt");
+    tiltInput.oninput = () => {
+        camera.tilt.x = tiltInput.valueAsNumber * Math.PI / 180;
+    }
+
     camera = new FisheyeCamera(resolution);
+    camera.tilt.x = tiltInput.valueAsNumber * Math.PI / 180;
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,

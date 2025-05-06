@@ -1,30 +1,20 @@
 import * as THREE from 'three';
+import {FisheyeCamera, saveImageSequence} from './domare.js';
 
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import Stats from 'three/addons/libs/stats.module.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {FisheyeCamera} from './fisheye.js';
 
 let canvas, camera, scene, renderer, stats;
 let clock, mixer;
 let controls;
 
-// https://discourse.threejs.org/t/fisheye-camera-tested-with-bruno-simons-level1-code/56787
 init();
 
-function setResolution(resolution) {
-    canvas.width = resolution;
-    canvas.height = resolution;
-
-    renderer.setSize(resolution, resolution);
-
-    if (controls) {
-        camera.setResolution(resolution);
-        controls.object = camera;
-    }
-}
-
+/**
+ * Initialise scene
+ */
 function init() {
     canvas = document.getElementById("threeCanvas");
     scene = new THREE.Scene();
@@ -49,18 +39,20 @@ function init() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setAnimationLoop(animate);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
     setResolution(resolution);
 
+    // Show performance statistics (FPS)
     stats = new Stats();
     document.body.appendChild(stats.dom);
 
+    // Add a default cube
     const cube = new THREE.Mesh(
         new THREE.BoxGeometry(0.5, 0.5, 0.5),
         new THREE.MeshStandardMaterial({color: 0x575757})
     );
     scene.add(cube);
 
+    // Load models throught input
     const modelInput = document.getElementById("modelInput");
     modelInput.onchange = () => {
         scene.remove(cube); // Remove default cube
@@ -71,31 +63,57 @@ function init() {
         }
     }
 
+    // Add a default background
     addBackground("textures/equirectangular/quarry_01_1k.hdr");
 
+    // Load background throught input
     const backgroundInput = document.getElementById("backgroundInput");
     backgroundInput.onchange = () => {
         const url = URL.createObjectURL(backgroundInput.files[0]);
         addBackground(url, undefined, ()=>URL.revokeObjectURL(url));
     }
 
+    // Setup orbit controls (for moving around the scene)
     controls = new OrbitControls(camera, renderer.domElement);
     controls.autoRotate = true;
 
+    // Setup clock (for use in animation loop)
     clock = new THREE.Clock();
 
-    window.saveImages = () => saveImages(
-        renderer,
+    // Expose relevant functions and objects
+    window.camera = camera;
+    window.addBackground = addBackground;
+    window.addModel = addModel;
+    window.saveImageSequence = () => saveImageSequence(
+        renderer, camera, scene, animate,
         document.getElementById("duration").valueAsNumber,
         document.getElementById("framerate").valueAsNumber,
         document.getElementById("eyeSep").valueAsNumber,
     );
-
-    window.camera = camera;
-    window.addBackground = addBackground;
-    window.addModel = addModel;
 }
 
+/**
+ * Set or change the resolution of the 3D canvas
+ * @param {number} resolution
+ */
+function setResolution(resolution) {
+    canvas.width = resolution;
+    canvas.height = resolution;
+
+    renderer.setSize(resolution, resolution);
+
+    if (controls) {
+        camera.setResolution(resolution);
+        controls.object = camera;
+    }
+}
+
+/**
+ * Load a background from path
+ * @param {string} url Path to HDR background
+ * @param {RGBELoader} loader
+ * @param {()=>void} callback Function to be run once the background is loaded
+ */
 function addBackground(url, loader=new RGBELoader(), callback=()=>{}) {
     loader.load(url, texture => {
         texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -107,6 +125,12 @@ function addBackground(url, loader=new RGBELoader(), callback=()=>{}) {
     });
 }
 
+/**
+ * Load a 3D model from path
+ * @param {string} url Path to glTF 3D model
+ * @param {GLTFLoader} loader
+ * @param {()=>void} callback Function to be run once the model is loaded
+ */
 function addModel(url, loader=new GLTFLoader(), callback=()=>{}) {
     loader.load(url, gltf => {
         scene.add(gltf.scene);
@@ -122,61 +146,12 @@ function addModel(url, loader=new GLTFLoader(), callback=()=>{}) {
     });
 }
 
-function canvasToBlob(canvas) {
-    return new Promise(resolve => {
-        canvas.toBlob(resolve);
-    });
-};
-
-async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.064) {
-    renderer.setAnimationLoop(null); // Stop auto animation
-    if (window.showDirectoryPicker === undefined) {
-        document.getElementById('unsupportedModal').open = true;
-        return;
-    }
-    const dirHandle = await window.showDirectoryPicker();
-    const dt = duration / fps
-    const iMax = duration * fps;
-    const maxDig = iMax.toString().length;
-
-    const eyes = new Map([
-        ["left", new THREE.Vector3(-eyeSep/2, 0, 0)],
-        ["right", new THREE.Vector3(eyeSep/2, 0, 0)]
-    ]);
-    let i = 0;
-    const step = async () => {
-        animate(undefined, dt);
-        for (const [eye, deltaPos] of eyes) {
-            //Offset camera for eye separation
-            camera.offset.copy(deltaPos);
-            camera.update(renderer, scene);
-            renderer.render(camera.outerScene, camera.outerCamera);
-            const blob = await canvasToBlob(renderer.domElement);
-
-            // Create handles for file and writable stream
-            const fileHandle = await dirHandle.getFileHandle(
-                `Bildsekvens.${i.toString().padStart(maxDig, "0")}.${eye}.png`,
-                {create: true}
-            )
-            const writableStream = await fileHandle.createWritable();
-            writableStream.write(blob);
-            writableStream.close();
-        }
-        i++;
-        if (i<iMax) {
-            requestAnimationFrame(step);
-        } else {
-            // Continue auto animation
-            renderer.setAnimationLoop(animate);
-
-            // Reset offset
-            camera.offset.set(0, 0, 0);
-        }
-    }
-    requestAnimationFrame(step);
-}
-
-function animate(_, delta=clock.getDelta()) {
+/**
+ * Animation loop
+ * @param {number} timestamp Timestamp in milliseconds (not used here)
+ * @param {number} delta Time delta in seconds since last frame
+ */
+function animate(timestamp, delta=clock.getDelta()) {
     controls.update(delta);
     camera.update(renderer, scene);
     renderer.render(camera.outerScene, camera.outerCamera);

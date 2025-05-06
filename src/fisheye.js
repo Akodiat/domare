@@ -6,9 +6,8 @@ const s = new THREE.Vector3();
 const e = new THREE.Euler(0, Math.PI, 0);
 
 class FisheyeCamera extends THREE.PerspectiveCamera {
-    constructor(resolution, detail = 32, eyeSep = 0.064) {
+    constructor(resolution, detail = 32) {
         super();
-        this.eyeSep = eyeSep;
         this.position.set(0, 0, 1);
 
         const radius = resolution/2;
@@ -25,6 +24,8 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
         this.sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
         this.sphere.scale.multiplyScalar(radius);
         this.outerScene.add(this.sphere);
+
+        this.offset = new THREE.Vector3();
 
         this.setResolution(resolution);
     }
@@ -50,12 +51,16 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
     }
 
     update(renderer, scene) {
-        this.cubeCamera.update(renderer, scene);
 
         // Apply camera position and rotation, flip the Y axis
         this.matrixWorld.decompose(t, r, s);
         this.cubeCamera.position.copy(t);
         this.cubeCamera.quaternion.setFromEuler(e).premultiply(r);
+
+        // Offset camera (for e.g. eye separation)
+        this.cubeCamera.position.add(this.localToWorld(this.offset.clone()));
+
+        this.cubeCamera.update(renderer, scene);
     }
 }
 

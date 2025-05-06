@@ -55,8 +55,6 @@ function init() {
     stats = new Stats();
     document.body.appendChild(stats.dom);
 
-    window.uploads = {};
-
     const cube = new THREE.Mesh(
         new THREE.BoxGeometry(0.5, 0.5, 0.5),
         new THREE.MeshStandardMaterial({color: 0x575757})
@@ -69,41 +67,16 @@ function init() {
         const loader = new GLTFLoader();
         for (const uploadedFile of modelInput.files) {
             const url = URL.createObjectURL(uploadedFile);
-            loader.load(url, gltf => {
-                window.uploads[uploadedFile.name.split(".").slice(0, -1).join(".")] = gltf.scene;
-                scene.add(gltf.scene);
-
-                if (gltf.animations.length > 0) {
-                    mixer = new THREE.AnimationMixer(gltf.scene);
-                    const action = mixer.clipAction(gltf.animations[0]);
-                    action.play();
-                }
-
-                URL.revokeObjectURL(url);
-            }, undefined, ()=>{
-                URL.revokeObjectURL(url)
-            });
+            addModel(url, loader, ()=>URL.revokeObjectURL(url));
         }
     }
 
-    new RGBELoader().load("textures/equirectangular/quarry_01_1k.hdr", texture => {
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        scene.background = texture;
-        scene.environment = texture;
-    });
+    addBackground("textures/equirectangular/quarry_01_1k.hdr");
 
     const backgroundInput = document.getElementById("backgroundInput");
     backgroundInput.onchange = () => {
         const url = URL.createObjectURL(backgroundInput.files[0]);
-        new RGBELoader().load(url, texture => {
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            scene.background = texture;
-            scene.environment = texture;
-
-            URL.revokeObjectURL(url);
-        }, undefined, ()=>{
-            URL.revokeObjectURL(url)
-        });
+        addBackground(url, undefined, ()=>URL.revokeObjectURL(url));
     }
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -119,6 +92,34 @@ function init() {
     );
 
     window.camera = camera;
+    window.addBackground = addBackground;
+    window.addModel = addModel;
+}
+
+function addBackground(url, loader=new RGBELoader(), callback=()=>{}) {
+    loader.load(url, texture => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = texture;
+        scene.environment = texture;
+        callback();
+    }, undefined, ()=>{
+        callback();
+    });
+}
+
+function addModel(url, loader=new GLTFLoader(), callback=()=>{}) {
+    loader.load(url, gltf => {
+        scene.add(gltf.scene);
+
+        if (gltf.animations.length > 0) {
+            mixer = new THREE.AnimationMixer(gltf.scene);
+            const action = mixer.clipAction(gltf.animations[0]);
+            action.play();
+        }
+        callback();
+    }, undefined, ()=>{
+        callback();
+    });
 }
 
 function canvasToBlob(canvas) {
@@ -127,7 +128,7 @@ function canvasToBlob(canvas) {
     });
 };
 
-async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.5) {
+async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.064) {
     renderer.setAnimationLoop(null); // Stop auto animation
     if (window.showDirectoryPicker === undefined) {
         document.getElementById('unsupportedModal').open = true;
@@ -146,14 +147,13 @@ async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.5) {
     const step = async () => {
         animate(undefined, dt);
         for (const [eye, deltaPos] of eyes) {
-            const dP = camera.localToWorld(deltaPos.clone());
-            camera.position.add(dP);
+            //Offset camera for eye separation
+            camera.offset.copy(deltaPos);
             camera.update(renderer, scene);
             renderer.render(camera.outerScene, camera.outerCamera);
             const blob = await canvasToBlob(renderer.domElement);
-            camera.position.sub(dP);
 
-            // create a new handle
+            // Create handles for file and writable stream
             const fileHandle = await dirHandle.getFileHandle(
                 `Bildsekvens.${i.toString().padStart(maxDig, "0")}.${eye}.png`,
                 {create: true}
@@ -161,7 +161,6 @@ async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.5) {
             const writableStream = await fileHandle.createWritable();
             writableStream.write(blob);
             writableStream.close();
-
         }
         i++;
         if (i<iMax) {
@@ -169,17 +168,15 @@ async function saveImages(renderer, duration = 0.5, fps = 60, eyeSep = 0.5) {
         } else {
             // Continue auto animation
             renderer.setAnimationLoop(animate);
+
+            // Reset offset
+            camera.offset.set(0, 0, 0);
         }
     }
     requestAnimationFrame(step);
 }
 
-function animate(_, delta) {
-    if (delta) {
-        controls.update(delta);
-    } else {
-        controls.update(clock.getDelta());
-    }
+function animate(_, delta=clock.getDelta()) {
     controls.update(delta);
     camera.update(renderer, scene);
     renderer.render(camera.outerScene, camera.outerCamera);

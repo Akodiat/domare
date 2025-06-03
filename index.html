@@ -29,10 +29,6 @@
 				<h1>Domare - Save Three.js scenes to Fulldome format</h1>
 				<fieldset class="grid">
 					<label>
-						Resolution (pixels)
-						<input type="number" id="resolution" value="800" aria-label="Side resolution">
-					</label>
-					<label>
 						Eye separation (scene units)
 						<input type="number" id="eyeSep" value="0.064" aria-label="Distance between eyes in scene units">
 					</label>
@@ -40,8 +36,16 @@
 						Forward tilt (degrees)
 						<input type="number" id="tilt" value="27" aria-label="Dome tilt">
 					</label>
+					<label>
+						Dome span (degrees)
+						<input type="number" id="span" value="165" max="180" min="1" aria-label="Dome span">
+					</label>
 				</fieldset>
 				<fieldset class="grid">
+					<label>
+						Resolution (pixels)
+						<input type="number" id="resolution" value="800" aria-label="Side resolution">
+					</label>
 					<label>
 						Duration (seconds)
 						<input type="number" id="duration" value="5" aria-label="Video duration in seconds">

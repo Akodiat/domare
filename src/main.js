@@ -34,6 +34,12 @@ function init() {
         camera.tilt.x = tiltInput.valueAsNumber * Math.PI / 180;
     }
 
+    const spanInput = document.getElementById("span");
+    spanInput.oninput = () => {
+        camera.span = spanInput.valueAsNumber;
+        setResolution(resolutionInput.valueAsNumber);
+    }
+
     camera = new FisheyeCamera(resolution);
     camera.tilt.x = tiltInput.valueAsNumber * Math.PI / 180;
 

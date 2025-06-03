@@ -15,9 +15,10 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
      * @param {THREE.Euler} tilt Tilt of the dome in Euler angles (radians)
      * @param {number} detail Smoothness of the icosphere used for the Fisheye effect
      */
-    constructor(resolution, tilt = new THREE.Euler(0, 0, 0), detail = 32) {
+    constructor(resolution, tilt = new THREE.Euler(0, 0, 0), detail = 32, span = 165) {
         super();
         this.position.set(0, 0, 1);
+        this.span = span;
 
         const radius = resolution/2;
         this.outerCamera = new THREE.OrthographicCamera();
@@ -47,12 +48,15 @@ class FisheyeCamera extends THREE.PerspectiveCamera {
      */
     setResolution(resolution) {
         const radius = resolution/2;
+        const theta = this.span/2 * Math.PI/180
+        const cutoffDist = radius * Math.cos(theta);
         this.outerCamera.left = resolution / -2;
         this.outerCamera.right = resolution / 2;
         this.outerCamera.top = resolution / 2;
         this.outerCamera.bottom = resolution / -2;
         this.outerCamera.position.set(0, 0, radius * 2);
-        this.outerCamera.far = radius * 2;
+        this.outerCamera.far = (radius * 2) - cutoffDist;
+        this.outerCamera.zoom = 1/ Math.sin(theta);
         this.outerCamera.updateProjectionMatrix();
 
         const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(resolution);
